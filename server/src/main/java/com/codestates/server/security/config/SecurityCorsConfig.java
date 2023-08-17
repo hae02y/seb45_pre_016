@@ -37,5 +37,3 @@ public class SecurityCorsConfig {
         return new CorsFilter(source);
     }
 }
-
-🔊 BE에 메시지 보내기
