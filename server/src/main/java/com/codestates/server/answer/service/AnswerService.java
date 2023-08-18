@@ -1,60 +1,75 @@
 package com.codestates.server.answer.service;
 
+import com.codestates.server.answer.dto.AnswerResponseDto;
 import com.codestates.server.answer.entity.Answer;
 import com.codestates.server.answer.repository.AnswerRepository;
 import com.codestates.server.question.entity.Question;
 import com.codestates.server.question.service.QuestionService;
 import com.codestates.server.user.entity.User;
 import com.codestates.server.user.repository.UserRepository;
+import com.codestates.server.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import javax.persistence.EntityNotFoundException;
 import javax.transaction.Transactional;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-// 예외처리 추가 예정.
 @Service
-@Transactional
 public class AnswerService {
 
     private final AnswerRepository answerRepository;
     private final QuestionService questionService;
+    private final UserService userService;
 
-    public AnswerService(AnswerRepository answerRepository, QuestionService questionService) {
+    public AnswerService(AnswerRepository answerRepository, QuestionService questionService, UserService userService) {
         this.answerRepository = answerRepository;
         this.questionService = questionService;
+        this.userService = userService;
     }
 
-    public List<Answer> createAnswer(Answer answer, Long questionId) {
+    public Answer createAnswer(Answer answer, Long questionId, Long userId) {
         Question question = questionService.findQuestion(questionId);
+        User user = userService.getUser(userId);
 
         answer.setQuestion(question);
+        answer.setUser(user);
+
         answerRepository.save(answer);
-
-        return answerRepository.findByQuestionId(question.getQuestionId());
+        return answer;
     }
 
-    public List<Answer> updateAnswer(Answer answer, long questionId) {
+    public Answer updateAnswer(Answer answer, long questionId) {
         Question question = questionService.findQuestion(questionId);
-        Answer findAnswer = findAnswerById(answer.getAnswerId());
+        Answer existingAnswer = findAnswerById(answer.getAnswerId());
 
-        findAnswer.setContent(answer.getContent());
-        answerRepository.save(findAnswer);
-        return answerRepository.findByQuestionId(question.getQuestionId());
+        if (existingAnswer != null) {
+            existingAnswer.setContent(answer.getContent());
+            answerRepository.save(existingAnswer);
+            return existingAnswer;
+        }
+
+        throw new EntityNotFoundException("답변이 검색되지 않습니다.");
     }
 
-    public List<Answer> getAnswer(long questionId) {
+    public List<Answer> findByQuestionId(long questionId) {
         return answerRepository.findByQuestionId(questionId);
     }
 
-    public List<Answer> deleteAnswer(long questionId, long answerId) {
-        Question question = questionService.findQuestion(questionId);
-        Answer answer = findAnswerById(answerId);
+    public void deleteAnswer(long questionId, long answerId) {
+        Answer existingAnswer = findAnswerById(answerId);
 
-        answerRepository.deleteById(answer.getAnswerId());
-        return answerRepository.findByQuestionId(question.getQuestionId());
+        if (existingAnswer != null) {
+            if (existingAnswer.getQuestion().getQuestionId() == questionId) {
+                answerRepository.deleteById(answerId);
+            } else {
+                throw new IllegalArgumentException("답변이 해당 질문에 연결되어 있지 않습니다.");
+            }
+        } else {
+            throw new EntityNotFoundException("답변이 검색되지 않습니다.");
+        }
     }
 
     public Answer findAnswerById(long answerId) {
