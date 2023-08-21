@@ -4,6 +4,7 @@ import com.codestates.server.answer.dto.AnswerResponseDto;
 import com.codestates.server.answer.entity.Answer;
 import com.codestates.server.answer.repository.AnswerRepository;
 import com.codestates.server.question.entity.Question;
+import com.codestates.server.question.repository.QuestionRepository;
 import com.codestates.server.question.service.QuestionService;
 import com.codestates.server.user.entity.User;
 import com.codestates.server.user.repository.UserRepository;
@@ -31,24 +32,35 @@ public class AnswerService {
     }
 
     public Answer createAnswer(Answer answer, Long questionId, Long userId) {
+
+        // Question Id 있는지 찾기
         Question question = questionService.findQuestion(questionId);
-        User user = userService.getUser(userId);
+        // userService에서 Login한 사용자의 정보 가지고 오기  -> 로그인 안 했으면 예외 던질것임..!
+        long loginUserId = userService.getLoginUser().getUserId();
 
-        answer.setQuestion(question);
-        answer.setUser(user);
+        if(userId == loginUserId){
+            answer.setUser(userService.getLoginUser());
+            // answer에 Question set하기 (위에서 있는지 찾았으니까)
+            answer.setQuestion(question);
+            answerRepository.save(answer);
+            return answer;
+        }else {
+            throw new RuntimeException("에러발생");
+        }
 
-        answerRepository.save(answer);
-        return answer;
     }
 
-    public Answer updateAnswer(Answer answer, long questionId) {
+    public Answer updateAnswer(Answer answer, long questionId, long userId) {
         Question question = questionService.findQuestion(questionId);
         Answer existingAnswer = findAnswerById(answer.getAnswerId());
 
         if (existingAnswer != null) {
-            existingAnswer.setContent(answer.getContent());
-            answerRepository.save(existingAnswer);
-            return existingAnswer;
+
+            if(existingAnswer.getUser().getUserId() == userId) {
+                existingAnswer.setContent(answer.getContent());
+                answerRepository.save(existingAnswer);
+                return existingAnswer;
+            }else throw new RuntimeException("유저가 다릅니다.");
         }
 
         throw new EntityNotFoundException("답변이 검색되지 않습니다.");
@@ -58,11 +70,11 @@ public class AnswerService {
         return answerRepository.findByQuestionId(questionId);
     }
 
-    public void deleteAnswer(long questionId, long answerId) {
+    public void deleteAnswer(long questionId, long answerId, long userId) {
         Answer existingAnswer = findAnswerById(answerId);
 
         if (existingAnswer != null) {
-            if (existingAnswer.getQuestion().getQuestionId() == questionId) {
+            if (existingAnswer.getQuestion().getQuestionId() == questionId && existingAnswer.getUser().getUserId() == userId) {
                 answerRepository.deleteById(answerId);
             } else {
                 throw new IllegalArgumentException("답변이 해당 질문에 연결되어 있지 않습니다.");
