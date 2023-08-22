@@ -41,7 +41,7 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String password;
 
     private String image;
@@ -83,7 +83,7 @@ public class User {
 
             userAnswerInfo.setAnswerId(answer.getAnswerId());
             userAnswerInfo.setContent(answer.getContent());
-            userAnswerInfo.setCreatedAt(answer.getCreated_At());
+            userAnswerInfo.setCreatedAt(answer.getCreatedAt());
 
             userAnswerInfos.add(userAnswerInfo);
         }
